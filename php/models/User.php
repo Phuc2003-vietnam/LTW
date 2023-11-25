@@ -8,16 +8,14 @@ class User
     public function get($queryParams, $allowedKeys = [], $select = [])
     {
         global $connection;
-
         if (!empty($allowedKeys)) {
             $queryParams = array_intersect_key($queryParams, array_flip($allowedKeys));
         }
 
-        $selectClause = empty($select) ? '*' : implode(', ', $select);
-
-        $conditions = [];
+        $selectClause = empty($select) ? '*' : implode(', ', $select); //implode is used to create string from array
+        $conditions = [];                   //declare array
         foreach ($queryParams as $key => $value) {
-            $conditions[] = "$key='$value'";
+            $conditions[] = "$key='$value'";    //push "..." to $conditions
         }
         $whereClause = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
         $query = "SELECT $selectClause FROM USER $whereClause";

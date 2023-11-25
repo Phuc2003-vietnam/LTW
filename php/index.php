@@ -11,7 +11,6 @@ header('Access-Control-Allow-Credentials: true');
 $httpMethod = $_SERVER['REQUEST_METHOD'];
 $uri = $_SERVER['REQUEST_URI'];
 
-
 // Handle  CORS error
 if ($httpMethod == "OPTIONS") {
     header("HTTP/1.1 200 OK");
@@ -26,14 +25,13 @@ require_once './config/Database.php';
 // Load .env variable
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
-
+function hello(){
+    echo "s";
+}
 
 //Router function
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
-    function addController($controller, $func)
-    {
-        return $controller . "Controller/" . $func;
-    }
+
 
     // Auth Group
     $r->addGroup('/{group:auth}', function (FastRoute\RouteCollector $r) {
@@ -42,6 +40,7 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
         $r->addRoute('PATCH', '/password', ['requireLogin', 'changePassword']);
         $r->addRoute('PATCH', '/profile', ['requireLogin', 'changeProfile']);
         $r->addRoute('DELETE', '', ['requireLogin', 'deleteSelf']);
+        $r->addRoute('GET', '/','hello');
     });
 
     // Account Group
@@ -102,10 +101,11 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     });
 });
 
+// echo $uri;
 
 // Strip query string (?foo=bar) and decode URI
 // To access query string, use $_GET['foo']
-if (false !== $pos = strpos($uri, '?')) {
+if (false !== $pos = strpos($uri, '?')) {    //may be this is for pathn params
     $uri = substr($uri, 0, $pos);
 }
 $uri = rawurldecode($uri);
@@ -113,6 +113,7 @@ $uri = rawurldecode($uri);
 
 // Route handler
 $routeInfo = $dispatcher->dispatch($httpMethod, $uri);
+// var_dump($routeInfo);
 switch ($routeInfo[0]) {
     case FastRoute\Dispatcher::NOT_FOUND:
         http_response_code(404);
@@ -123,18 +124,18 @@ switch ($routeInfo[0]) {
         echo json_encode(["message" => 'Method is not allowed']);
         break;
     case FastRoute\Dispatcher::FOUND:
-        $handler = $routeInfo[1];
-        $vars = $routeInfo[2];
-        $json = file_get_contents('php://input');
+        $handler = $routeInfo[1];               // catch the path , not include group : ex : login
+        $vars = $routeInfo[2];                  // array :  ex : $vars[group]= "auth"
+        $json = file_get_contents('php://input');       // get the json passed to it
         $data = array();
         if (!empty($json)) {
-            $data = json_decode($json, true);
+            $data = json_decode($json, true);       // change json type to php array
         }
-
         // Call middleware
         include_once './middlewares/Middleware.php';
 
-        foreach ((array) $handler as $function) {
+        foreach ((array) $handler as $function) { 
+            // echo   $handler;   
             switch ($function) {
                 case 'requireLogin':
                     Middleware::requireLogin($vars);
@@ -144,9 +145,10 @@ switch ($routeInfo[0]) {
                     break;
                 default:
                     $controllerName = ucfirst($vars['group']) . 'Controller';
+                    // echo $controllerName;
                     require './controllers/' . $controllerName . '.php';
                     $controller = new $controllerName();
-                    $controller->$function($vars, $data);
+                    $controller->$function($vars, $data); 
                     break;
             }
         }
